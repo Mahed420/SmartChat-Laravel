@@ -20,15 +20,30 @@ class ChatController extends Controller
         $userMessage->content = $request->message;
         $userMessage->save();
 
+        $pastmessages = Message::orderBy('id', 'desc')->get()->reverse();
+
+        $ontext = '';
+
+        foreach ($pastmessages as $message) {
+            $rote = ($message->sender === 'user') ? 'User' : 'Model';
+            $ontext .= $rote . ': ' . $message->content . "\n";
+        }
+
+        $context = "User: " . $request->message . "\n" . $ontext;
+
         $api_key = env('GEMINI_API_KEY');
         $url = "https://generativelanguage.googleapis.com/v1beta/interactions";
+
+        $system_prompt = config('bot.system_prompt');
+
+        
         $response = Http::withHeaders([
             'x-goog-api-key' => $api_key,
             'content-type' => 'application/json',
         ])->withBody(
             json_encode([
                 'model' => 'gemini-3.5-flash',
-                'input' => $request->message,
+                'input' => $system_prompt . "\n\n" . $context,
             ]),
             'application/json'
         )->post($url);
@@ -79,5 +94,11 @@ class ChatController extends Controller
         }
 
         return json_encode($data);
+    }
+
+    public function getMessages()
+    {
+        $messages = Message::orderBy('id', 'asc')->get();
+        return response()->json(['status' => 'success', 'messages' => $messages]);
     }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'chat_bubble.dart';
 import 'package:http/http.dart' as http;
+import '../model/MessageModel.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -11,11 +12,61 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
+
+  List<MessageModel> _messages = [];
   bool _isLoading = false;
 
-  final String _apiUrl = 'http://127.0.0.1:8000/api/send-message';
+  final String _sendUrl = 'http://127.0.0.1:8000/api/send-message';
+  final String _historyUrl = 'http://127.0.0.1:8000/api/messages';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChatHistory();
+  }
+
+  Future<void> _loadChatHistory() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final response = await http.get(
+        Uri.parse(_historyUrl),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          setState(() {
+            _messages = (data['messages'] as List)
+                .map((msg) => MessageModel.fromJson(msg))
+                .toList();
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading chat history: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
@@ -23,13 +74,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _messageController.clear();
     setState(() {
-      _messages.add({'message': text, 'isMe': true});
+      _messages.add(MessageModel(sender: 'user', content: text));
       _isLoading = true;
+      _scrollToBottom();
     });
 
     try {
       final response = await http.post(
-        Uri.parse(_apiUrl),
+        Uri.parse(_sendUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'message': text}),
       );
@@ -38,11 +90,14 @@ class _ChatScreenState extends State<ChatScreen> {
         final data = jsonDecode(response.body);
 
         setState(() {
-          _messages.add({
-            'message': data['bot_message']['content'].toString(),
-            'isMe': false,
-          });
+          _messages.add(
+            MessageModel(
+              sender: data['bot_message']['sender'].toString(),
+              content: data['bot_message']['content'].toString(),
+            ),
+          );
         });
+        _scrollToBottom();
       } else {
         debugPrint('Server Error: ${response.body}');
       }
@@ -63,20 +118,22 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(10),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msgData = _messages[index];
-                final String messageText =
-                    msgData['message']?.toString() ?? 'No message text';
-                final bool isMe = msgData['isMe'] ?? false;
 
-                return ChatBubble(message: messageText, isMe: isMe);
+                final bool isMe = msgData.sender == 'user';
+
+                return ChatBubble(message: msgData.content, isMe: isMe);
               },
             ),
           ),
 
-          if (_isLoading)
+          if (_isLoading && _messages.isEmpty)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          else if (_isLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8.0),
               child: Center(
