@@ -29,48 +29,56 @@ class ChatController extends Controller
             $ontext .= $rote . ': ' . $message->content . "\n";
         }
 
-        $context = "User: " . $request->message . "\n" . $ontext;
-
-        $api_key = env('GEMINI_API_KEY');
-        $url = "https://generativelanguage.googleapis.com/v1beta/interactions";
-
         $system_prompt = config('bot.system_prompt');
 
-        
-        $response = Http::withHeaders([
-            'x-goog-api-key' => $api_key,
-            'content-type' => 'application/json',
-        ])->withBody(
-            json_encode([
-                'model' => 'gemini-3.5-flash',
-                'input' => $system_prompt . "\n\n" . $context,
-            ]),
-            'application/json'
-        )->post($url);
-
-        $http_code = $response->status();
-        $responseData = $response->json();
+        $context = "User: " . $request->message . "\n" . $ontext;
 
 
-        if ($http_code == 200 && isset($responseData)) {
+        try {
+            $api_key = env('GEMINI_API_KEY');
+            $url = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
-            $botMessageContent = $this->extractBotResponseFromInteraction($responseData);
+            $response = Http::withHeaders([
+                'x-goog-api-key' => $api_key,
+                'content-type' => 'application/json',
+            ])->withBody(
+                json_encode([
+                    'model' => 'gemini-3.5-flash',
+                    'input' => $system_prompt . "\n\n" . $context,
+                ]),
+                'application/json'
+            )->post($url);
 
-            $botMessage = new Message();
-            $botMessage->sender = 'bot';
-            $botMessage->content = $botMessageContent;
-            $botMessage->save();
+            $http_code = $response->status();
+            $responseData = $response->json();
 
-            return response()->json([
-                'status' => 'success',
-                'user_message' => $userMessage,
-                'bot_message' => $botMessage,
-            ]);
-        } else {
+
+            if ($http_code == 200 && isset($responseData)) {
+
+                $botMessageContent = $this->extractBotResponseFromInteraction($responseData);
+
+                $botMessage = new Message();
+                $botMessage->sender = 'bot';
+                $botMessage->content = $botMessageContent;
+                $botMessage->save();
+
+                return response()->json([
+                    'status' => 'success',
+                    'user_message' => $userMessage,
+                    'bot_message' => $botMessage,
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to get response from the bot.',
+                    'error_details' => $responseData ?? $response->body()
+                ], 500);
+            }
+        } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to get response from the bot.',
-                'error_details' => $responseData ?? $response->body()
+                'message' => 'Failed to communicate with the bot.',
+                'error_details' => $e->getMessage()
             ], 500);
         }
     }

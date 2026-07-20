@@ -99,10 +99,18 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         _scrollToBottom();
       } else {
-        debugPrint('Server Error: ${response.body}');
+        final errorData = jsonDecode(response.body);
+        String errorMessage = errorData['message'] ?? 'Unknown error occurred';
+        setState(() {
+          _messages.add(MessageModel(sender: 'bot', content: errorMessage));
+        });
+        _scrollToBottom();
       }
     } catch (e) {
-      debugPrint('Connection Error: $e');
+      setState(() {
+        _messages.add(MessageModel(sender: 'bot', content: 'Error: $e'));
+      });
+      _scrollToBottom();
     } finally {
       setState(() {
         _isLoading = false;
@@ -112,62 +120,147 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Laravel Chat Bot')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(10),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msgData = _messages[index];
-
-                final bool isMe = msgData.sender == 'user';
-
-                return ChatBubble(message: msgData.content, isMe: isMe);
-              },
-            ),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Laravel Chat Bot',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
           ),
-
-          if (_isLoading && _messages.isEmpty)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8.0),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+          centerTitle: true,
+          backgroundColor: Colors.blueAccent,
+          elevation: 2,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 10,
                 ),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final msgData = _messages[index];
+
+                  final bool isMe = msgData.sender == 'user';
+
+                  return ChatBubble(message: msgData.content, isMe: isMe);
+                },
               ),
             ),
 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            color: Colors.grey[200],
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: "Type a message...",
-                      border: InputBorder.none,
+            if (_isLoading && _messages.isEmpty)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_isLoading)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(16),
+                          topRight: const Radius.circular(16),
+                          bottomLeft: const Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            "Bot is typing...",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Colors.blueAccent,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
+                  ],
+                ),
+              ),
+
+            Container(
+              padding: const EdgeInsets.only(
+                left: 12,
+                right: 12,
+                bottom: 20,
+                top: 10,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
-                ),
-              ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.grey[300]!,
+                          width: 0.8,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: const InputDecoration(
+                          hintText: 'Type a message...',
+                          border: InputBorder.none,
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _sendMessage,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
