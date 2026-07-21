@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'chat_bubble.dart';
+import '../widgets/chat_bubble.dart';
 import 'package:http/http.dart' as http;
 import '../model/MessageModel.dart';
 
@@ -124,13 +124,55 @@ class _ChatScreenState extends State<ChatScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'Laravel Chat Bot',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          elevation: 1,
+          titleSpacing: 0,
+          title: Row(
+            children: [
+              const SizedBox(width: 10),
+              Stack(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFF2575FC),
+                    child: Icon(Icons.smart_toy_rounded, color: Colors.white),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent[400],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SmartChat Bot',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    'Online',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.greenAccent[400],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          centerTitle: true,
-          backgroundColor: Colors.blueAccent,
-          elevation: 2,
         ),
         body: Column(
           children: [
@@ -145,9 +187,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemBuilder: (context, index) {
                   final msgData = _messages[index];
 
-                  final bool isMe = msgData.sender == 'user';
+                  final String content = msgData.content ?? '';
+                  final bool isMe = (msgData.sender ?? 'user') == 'user';
 
-                  return ChatBubble(message: msgData.content, isMe: isMe);
+                  return ChatBubble(message: content, isMe: isMe);
                 },
               ),
             ),
