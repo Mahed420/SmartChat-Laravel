@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../widgets/chat_bubble.dart';
 import 'package:http/http.dart' as http;
@@ -18,8 +20,16 @@ class _ChatScreenState extends State<ChatScreen> {
   List<MessageModel> _messages = [];
   bool _isLoading = false;
 
-  final String _sendUrl = 'http://127.0.0.1:8000/api/send-message';
-  final String _historyUrl = 'http://127.0.0.1:8000/api/messages';
+  // 🌐 ডাইনামিক বেজ ইউআরএল (প্ল্যাটফর্ম অনুযায়ী অটো অ্যাডজাস্ট হবে)
+  String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000/api'; // Flutter Web / Chrome Browser
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000/api'; // Android Emulator
+    } else {
+      return 'http://127.0.0.1:8000/api'; // iOS / Desktop
+    }
+  }
 
   @override
   void initState() {
@@ -33,9 +43,13 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     try {
       final response = await http.get(
-        Uri.parse(_historyUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
       );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'success') {
@@ -46,13 +60,17 @@ class _ChatScreenState extends State<ChatScreen> {
           });
           _scrollToBottom();
         }
+      } else {
+        debugPrint('History load failed with code: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error loading chat history: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -70,19 +88,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isLoading) return;
 
     _messageController.clear();
     setState(() {
       _messages.add(MessageModel(sender: 'user', content: text));
       _isLoading = true;
-      _scrollToBottom();
     });
+    _scrollToBottom();
 
     try {
       final response = await http.post(
-        Uri.parse(_sendUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/send-message'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'message': text}),
       );
 
@@ -97,24 +118,27 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           );
         });
-        _scrollToBottom();
       } else {
         final errorData = jsonDecode(response.body);
-        String errorMessage = errorData['message'] ?? 'Unknown error occurred';
+        String errorMessage =
+            errorData['message'] ?? 'Error: Status ${response.statusCode}';
         setState(() {
           _messages.add(MessageModel(sender: 'bot', content: errorMessage));
         });
-        _scrollToBottom();
       }
     } catch (e) {
       setState(() {
-        _messages.add(MessageModel(sender: 'bot', content: 'Error: $e'));
+        _messages.add(
+          MessageModel(sender: 'bot', content: 'Network Error: $e'),
+        );
       });
-      _scrollToBottom();
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      _scrollToBottom();
     }
   }
 
@@ -199,7 +223,10 @@ class _ChatScreenState extends State<ChatScreen> {
               const Expanded(child: Center(child: CircularProgressIndicator()))
             else if (_isLoading)
               Padding(
-                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 20,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -209,10 +236,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(16),
-                          topRight: const Radius.circular(16),
-                          bottomLeft: const Radius.circular(16),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
                         ),
                       ),
                       child: Row(
@@ -226,7 +253,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               fontSize: 14,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           SizedBox(
                             width: 12,
                             height: 12,
@@ -288,7 +315,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     onTap: _sendMessage,
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.blueAccent,
                         shape: BoxShape.circle,
                       ),
