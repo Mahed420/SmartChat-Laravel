@@ -346,6 +346,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         extendBodyBehindAppBar: true,
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
@@ -449,9 +450,14 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 10,
+                  padding: EdgeInsets.only(
+                    top:
+                        MediaQuery.of(context).padding.top +
+                        kToolbarHeight +
+                        10,
+                    left: 10,
+                    right: 10,
+                    bottom: 80,
                   ),
                   itemCount: _messages.length,
                   itemBuilder: (context, index) {
