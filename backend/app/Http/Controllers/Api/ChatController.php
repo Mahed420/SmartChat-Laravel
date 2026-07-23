@@ -189,7 +189,7 @@ class ChatController extends Controller
             return !in_array($word, $stopWords) && strlen($word) > 2;
         });
 
-        $keywords = array_unique($keywords);
+        $keywords = array_values($keywords); 
 
         return $keywords;
     }

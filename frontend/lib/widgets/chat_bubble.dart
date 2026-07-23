@@ -5,6 +5,7 @@ class ChatBubble extends StatelessWidget {
   final String message;
   final bool isMe;
   final String? time;
+
   const ChatBubble({
     super.key,
     required this.message,
@@ -14,13 +15,15 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color textColor = isMe ? Colors.white : Colors.black87;
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xFF2575Fc) : Colors.grey[300],
@@ -45,16 +48,29 @@ class ChatBubble extends StatelessWidget {
           children: [
             MarkdownBody(
               data: message,
+              selectable: true,
               styleSheet: MarkdownStyleSheet(
-                p: TextStyle(
-                  color: isMe ? Colors.white : Colors.black87,
+                p: TextStyle(color: textColor, fontSize: 15, height: 1.3),
+                strong: TextStyle(
+                  color: textColor,
+                  backgroundColor: Colors.transparent,
+                  fontWeight: FontWeight.bold,
+                ),
+                em: TextStyle(
+                  color: textColor,
+                  backgroundColor: Colors.transparent,
+                  fontStyle: FontStyle.italic,
+                ),
+                listBullet: TextStyle(
+                  color: textColor,
+                  backgroundColor: Colors.transparent,
                   fontSize: 15,
-                  height: 1.3,
                 ),
                 code: TextStyle(
-                  color: isMe ? Colors.white : Colors.black87,
+                  color: isMe ? Colors.white : const Color(0xFFD63384),
                   backgroundColor: Colors.transparent,
                   fontFamily: 'monospace',
+                  fontSize: 13,
                 ),
                 codeblockDecoration: BoxDecoration(
                   color: isMe ? Colors.white24 : Colors.grey[200],
